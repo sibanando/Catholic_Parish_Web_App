@@ -58,7 +58,9 @@ export default function Login() {
           transition={{ duration: 0.5, delay: 0.1 }}
         >
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-gold-400 to-gold-600 shadow-xl shadow-gold-900/20 mb-5">
-            <svg className="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M11 2v6H7l5 5 5-5h-4V2h-2zm0 12v8h2v-8h-2z"/></svg>
+            <svg className="w-11 h-11 text-white" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M10.5 2 H13.5 V6.5 H22 V9.5 H13.5 V22 H10.5 V9.5 H2 V6.5 H10.5 Z" />
+            </svg>
           </div>
           <h1 className="font-serif text-3xl font-bold text-gold-400 tracking-tight">Parish Manager</h1>
           <p className="text-navy-300 mt-2 text-sm">Catholic Parish Sacramental Records</p>

@@ -89,8 +89,10 @@ export default function Layout() {
         <div className={`px-4 py-5 border-b border-navy-700/50 flex items-center gap-3 ${sidebarCollapsed ? 'justify-center' : ''}`}>
           {logoPath
             ? <img src={logoPath} alt="Parish Logo" className="w-10 h-10 rounded-full object-contain bg-white p-0.5 shrink-0 ring-2 ring-gold-400/30" />
-            : <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gold-400 to-gold-600 flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-lg">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M11 2v6H7l5 5 5-5h-4V2h-2zm0 12v8h2v-8h-2z"/></svg>
+            : <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gold-400 to-gold-600 flex items-center justify-center text-white shrink-0 shadow-lg">
+                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M10.5 2 H13.5 V6.5 H22 V9.5 H13.5 V22 H10.5 V9.5 H2 V6.5 H10.5 Z" />
+                </svg>
               </div>
           }
           <AnimatePresence>
