@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: parish-config
+  namespace: parish
+data:
+  NODE_ENV: "production"
+  PORT: "4000"
+  JWT_EXPIRES_IN: "15m"
+  JWT_REFRESH_EXPIRES_IN: "7d"
+  # Update FRONTEND_URL to match your actual domain
+  FRONTEND_URL: "https://your-domain.com"
+  # BACKEND_HOST must match the backend Service name below
+  BACKEND_HOST: "backend"

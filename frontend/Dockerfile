@@ -9,6 +9,8 @@ RUN npm run build
 # ---- Production Stage ----
 FROM nginx:alpine AS production
 COPY --from=builder /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Template: nginx entrypoint substitutes ${BACKEND_HOST} at container start
+COPY nginx.conf.template /etc/nginx/templates/default.conf.template
+# Default value — override at runtime via BACKEND_HOST env var
+ENV BACKEND_HOST=backend
 EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]

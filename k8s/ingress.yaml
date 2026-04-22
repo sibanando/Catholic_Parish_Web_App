@@ -1,0 +1,50 @@
+# Requires nginx ingress controller (https://kubernetes.github.io/ingress-nginx/)
+# For TLS, also install cert-manager and update the cluster-issuer annotation.
+#
+# Install nginx ingress:
+#   kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.10.0/deploy/static/provider/cloud/deploy.yaml
+#
+# Install cert-manager:
+#   kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.4/cert-manager.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: parish-ingress
+  namespace: parish
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "90"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    # Uncomment after installing cert-manager:
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  # Uncomment for TLS (update host and secretName):
+  # tls:
+  #   - hosts:
+  #       - your-domain.com
+  #     secretName: parish-tls
+  rules:
+    - host: your-domain.com   # <-- replace with your actual domain
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 4000
+          - path: /health
+            pathType: Exact
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 4000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80

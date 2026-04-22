@@ -26,5 +26,9 @@ RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist
 
+# node:20-slim ships a built-in 'node' user (uid=1000). Use it.
+RUN mkdir -p certificates && chown -R node:node /app
+USER node
+
 EXPOSE 4000
 CMD ["node", "dist/index.js"]

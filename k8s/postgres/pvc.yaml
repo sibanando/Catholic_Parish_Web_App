@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: parish
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  # storageClassName: default  # uncomment and set for your cloud provider
+  #   AWS EKS:   gp3
+  #   GKE:       standard-rwo
+  #   Azure AKS: managed-premium
