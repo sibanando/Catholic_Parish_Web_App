@@ -31,11 +31,19 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
   const lim = Math.min(100, Math.max(1, parseInt(limit as string)));
   const offset = (p - 1) * lim;
 
-  // Scope to parish via family membership — avoids leaking parish-less people
-  const parishScope = `EXISTS (
-    SELECT 1 FROM family_memberships fm2
-    JOIN families f2 ON fm2.family_id = f2.id
-    WHERE fm2.person_id = p.id AND f2.parish_id = $1
+  // Scope to parish via family membership OR primary_family_id
+  // (new people may not have a membership row yet if assigned via primary_family_id)
+  const parishScope = `(
+    EXISTS (
+      SELECT 1 FROM family_memberships fm2
+      JOIN families f2 ON fm2.family_id = f2.id
+      WHERE fm2.person_id = p.id AND f2.parish_id = $1
+    ) OR (
+      p.primary_family_id IS NOT NULL AND EXISTS (
+        SELECT 1 FROM families f3
+        WHERE f3.id = p.primary_family_id AND f3.parish_id = $1
+      )
+    )
   )`;
 
   const conditions: string[] = [parishScope];
@@ -89,6 +97,14 @@ router.post('/', requireRoles(ROLES.ADMIN, ROLES.CLERK), async (req: Request, re
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
       [primaryFamilyId, firstName, middleName, lastName, maidenName, baptismalName, fatherName, motherName, dob || null, gender, email || null, phone, status]
     );
+    // Also create family_memberships row so the person is immediately visible in parish scope
+    if (primaryFamilyId) {
+      await pool.query(
+        `INSERT INTO family_memberships (family_id, person_id, relationship)
+         VALUES ($1, $2, 'member') ON CONFLICT DO NOTHING`,
+        [primaryFamilyId, result.rows[0].id]
+      );
+    }
     await logAudit(req, 'person', result.rows[0].id, 'CREATE', undefined, result.rows[0]);
     res.status(201).json(result.rows[0]);
   } catch (err) {

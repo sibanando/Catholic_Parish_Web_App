@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { peopleApi } from '../api/client';
+import { peopleApi, familiesApi } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import PageHeader from '../components/PageHeader';
 import Modal from '../components/ui/Modal';
@@ -30,6 +30,7 @@ export default function People() {
   const [editPerson, setEditPerson] = useState<Person | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Person | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [families, setFamilies] = useState<{ id: string; family_name: string }[]>([]);
 
   const debouncedSearch = useDebounce(search, 300);
 
@@ -48,6 +49,14 @@ export default function People() {
 
   useEffect(() => { load(); }, []);
   useEffect(() => { setPage(1); load(debouncedSearch, 1); }, [debouncedSearch]);
+
+  useEffect(() => {
+    if (showModal) {
+      familiesApi.list({ limit: 200 })
+        .then(r => setFamilies(r.data.data ?? r.data))
+        .catch(() => {});
+    }
+  }, [showModal]);
 
   useEffect(() => {
     if (editPerson) {
@@ -281,6 +290,16 @@ export default function People() {
       <Modal open={showModal} onClose={() => { setShowModal(false); reset(); }} title="New Person" subtitle="Add a parishioner" size="lg">
         <form onSubmit={handleSubmit(onSubmit)}>
           <PersonFormFields f={register} errs={errors as Record<string, { message?: string }>} />
+          <div className="px-6 pb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Family</label>
+            <select {...register('primaryFamilyId')} className="input w-full">
+              <option value="">— No family assigned —</option>
+              {families.map(f => (
+                <option key={f.id} value={f.id}>{f.family_name}</option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-400 mt-1">Assign to a family so this person appears in the parish list.</p>
+          </div>
           <div className="flex gap-3 px-6 pb-6">
             <button type="button" onClick={() => { setShowModal(false); reset(); }} className="btn-secondary flex-1">Cancel</button>
             <button type="submit" disabled={saving} className="btn-primary flex-1">{saving ? 'Saving...' : 'Create Person'}</button>
