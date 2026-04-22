@@ -245,12 +245,12 @@ export default function Families() {
         {/* Pagination */}
         {total > 20 && (
           <div className="flex items-center justify-center gap-2 mt-6">
-            <button disabled={page === 1} onClick={() => { setPage(p => p - 1); load(page - 1); }} className="btn-secondary text-sm disabled:opacity-40">
+            <button disabled={page === 1 || loading} onClick={() => { setPage(p => p - 1); load(page - 1, debouncedSearch); }} className="btn-secondary text-sm disabled:opacity-40">
               <svg className="w-4 h-4 mr-1 inline" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
               Previous
             </button>
             <span className="px-4 py-2 text-sm text-gray-500 font-medium">Page {page} of {Math.ceil(total / 20)}</span>
-            <button disabled={page * 20 >= total} onClick={() => { setPage(p => p + 1); load(page + 1); }} className="btn-secondary text-sm disabled:opacity-40">
+            <button disabled={page * 20 >= total || loading} onClick={() => { setPage(p => p + 1); load(page + 1, debouncedSearch); }} className="btn-secondary text-sm disabled:opacity-40">
               Next
               <svg className="w-4 h-4 ml-1 inline" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
             </button>

@@ -443,7 +443,7 @@ router.delete('/:id', requireRoles(ROLES.ADMIN), async (req: Request, res: Respo
   try {
     const before = await pool.query('SELECT * FROM donations WHERE id = $1 AND parish_id = $2', [req.params.id, req.user!.parishId]);
     if (!before.rows[0]) { res.status(404).json({ error: 'Donation not found' }); return; }
-    await pool.query('DELETE FROM donations WHERE id = $1', [req.params.id]);
+    await pool.query('DELETE FROM donations WHERE id = $1 AND parish_id = $2', [req.params.id, req.user!.parishId]);
     await logAudit(req, 'donation', req.params.id, 'DELETE', before.rows[0], undefined);
     res.status(204).send();
   } catch (err) {

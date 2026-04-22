@@ -123,17 +123,28 @@ export default function DonationDashboard() {
               <motion.div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm"
                 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
                 <h3 className="text-sm font-semibold text-maroon-800 mb-3">{L.donationType}</h3>
-                <ResponsiveContainer width="100%" height={250}>
-                  <PieChart>
-                    <Pie data={data.typeBreakdown.filter(t => t.total > 0)} dataKey="total" nameKey="name"
-                      cx="50%" cy="50%" outerRadius={80} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                      {data.typeBreakdown.map((_, i) => (
-                        <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(v: number) => formatINR(v)} contentStyle={{ borderRadius: '12px', border: '1px solid #e5e7eb' }} />
-                  </PieChart>
-                </ResponsiveContainer>
+                {data.typeBreakdown.some(t => t.total > 0) ? (
+                  <ResponsiveContainer width="100%" height={250}>
+                    <PieChart>
+                      <Pie
+                        data={data.typeBreakdown.filter(t => t.total > 0)}
+                        dataKey="total"
+                        nameKey="name"
+                        cx="50%" cy="50%" outerRadius={80}
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {data.typeBreakdown.filter(t => t.total > 0).map((_, i) => (
+                          <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v: number) => formatINR(v)} contentStyle={{ borderRadius: '12px', border: '1px solid #e5e7eb' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-[250px] flex items-center justify-center text-gray-400 text-sm">
+                    No donations recorded for {year}
+                  </div>
+                )}
               </motion.div>
             </div>
 

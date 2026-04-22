@@ -13,7 +13,9 @@ router.use(authenticate);
 // GET /admin/audit-log
 router.get('/audit-log', requireRoles(ROLES.ADMIN, ROLES.AUDITOR), async (req: Request, res: Response): Promise<void> => {
   const { entityType, action, userId, page = '1', limit = '50' } = req.query;
-  const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
+  const p = Math.max(1, parseInt(page as string));
+  const lim = Math.min(200, Math.max(1, parseInt(limit as string)));
+  const offset = (p - 1) * lim;
   const conditions: string[] = [];
   const params: unknown[] = [];
   let idx = 1;
@@ -31,10 +33,10 @@ router.get('/audit-log', requireRoles(ROLES.ADMIN, ROLES.AUDITOR), async (req: R
        ${where}
        ORDER BY al.timestamp DESC
        LIMIT $${idx} OFFSET $${idx + 1}`,
-      [...params, parseInt(limit as string), offset]
+      [...params, lim, offset]
     );
     const countRes = await pool.query(`SELECT COUNT(*) FROM audit_log ${where}`, params);
-    res.json({ data: result.rows, total: parseInt(countRes.rows[0].count), page: parseInt(page as string) });
+    res.json({ data: result.rows, total: parseInt(countRes.rows[0].count), page: p });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });

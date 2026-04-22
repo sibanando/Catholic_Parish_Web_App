@@ -42,14 +42,16 @@ router.get('/types', async (_req: Request, res: Response): Promise<void> => {
 // GET /sacraments
 router.get('/', async (req: Request, res: Response): Promise<void> => {
   const { typeCode, personId, personName, celebrant, dateFrom, dateTo, status, page = '1', limit = '20' } = req.query;
-  const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
+  const p = Math.max(1, parseInt(page as string));
+  const lim = Math.min(100, Math.max(1, parseInt(limit as string)));
+  const offset = (p - 1) * lim;
   const conditions: string[] = ['s.parish_id = $1'];
   const params: unknown[] = [req.user!.parishId];
   let idx = 2;
 
   if (typeCode) { conditions.push(`st.code = $${idx++}`); params.push(typeCode); }
   if (personId) { conditions.push(`s.person_id = $${idx++}`); params.push(personId); }
-  if (personName) { conditions.push(`(p.first_name ILIKE $${idx} OR p.last_name ILIKE $${idx} OR CONCAT(p.first_name, ' ', p.last_name) ILIKE $${idx})`); params.push(`%${personName}%`); idx++; }
+  if (personName) { conditions.push(`(p.first_name ILIKE $${idx} OR p.last_name ILIKE $${idx} OR (p.first_name || ' ' || p.last_name) ILIKE $${idx})`); params.push(`%${personName}%`); idx++; }
   if (celebrant) { conditions.push(`s.celebrant ILIKE $${idx++}`); params.push(`%${celebrant}%`); }
   if (dateFrom) { conditions.push(`s.date >= $${idx++}`); params.push(dateFrom); }
   if (dateTo) { conditions.push(`s.date <= $${idx++}`); params.push(dateTo); }
@@ -57,18 +59,27 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
 
   const where = conditions.join(' AND ');
   try {
-    const result = await pool.query(
-      `SELECT s.*, st.code, st.name as sacrament_name, st.sequence_order,
-              p.first_name, p.last_name
-       FROM sacraments s
-       JOIN sacrament_types st ON s.sacrament_type_id = st.id
-       JOIN people p ON s.person_id = p.id
-       WHERE ${where}
-       ORDER BY s.date DESC NULLS LAST
-       LIMIT $${idx} OFFSET $${idx + 1}`,
-      [...params, parseInt(limit as string), offset]
-    );
-    res.json({ data: result.rows, page: parseInt(page as string) });
+    const [countRes, dataRes] = await Promise.all([
+      pool.query(
+        `SELECT COUNT(*) FROM sacraments s
+         JOIN sacrament_types st ON s.sacrament_type_id = st.id
+         JOIN people p ON s.person_id = p.id
+         WHERE ${where}`,
+        params
+      ),
+      pool.query(
+        `SELECT s.*, st.code, st.name as sacrament_name, st.sequence_order,
+                p.first_name, p.last_name
+         FROM sacraments s
+         JOIN sacrament_types st ON s.sacrament_type_id = st.id
+         JOIN people p ON s.person_id = p.id
+         WHERE ${where}
+         ORDER BY s.date DESC NULLS LAST
+         LIMIT $${idx} OFFSET $${idx + 1}`,
+        [...params, lim, offset]
+      ),
+    ]);
+    res.json({ data: dataRes.rows, total: parseInt(countRes.rows[0].count), page: p });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });

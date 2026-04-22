@@ -36,8 +36,17 @@ if (process.env.NODE_ENV === 'production') {
   }));
 }
 
+// Stricter rate limit on auth endpoints (applies in all environments)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many authentication attempts, please try again later' },
+});
+
 // Public routes
-app.use('/api/auth', authRouter);
+app.use('/api/auth', authLimiter, authRouter);
 
 // Public verification endpoint
 app.get('/api/verify/:token', (req, res) => {

@@ -18,7 +18,9 @@ const familySchema = z.object({
 // GET /families
 router.get('/', async (req: Request, res: Response): Promise<void> => {
   const { search, status, page = '1', limit = '20' } = req.query;
-  const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
+  const p = Math.max(1, parseInt(page as string));
+  const lim = Math.min(100, Math.max(1, parseInt(limit as string)));
+  const offset = (p - 1) * lim;
   const conditions: string[] = ['f.parish_id = $1'];
   const params: unknown[] = [req.user!.parishId];
   let idx = 2;
@@ -37,9 +39,9 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
        GROUP BY f.id
        ORDER BY f.family_name
        LIMIT $${idx} OFFSET $${idx + 1}`,
-      [...params, parseInt(limit as string), offset]
+      [...params, lim, offset]
     );
-    res.json({ data: result.rows, total: parseInt(countRes.rows[0].count), page: parseInt(page as string) });
+    res.json({ data: result.rows, total: parseInt(countRes.rows[0].count), page: p });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });

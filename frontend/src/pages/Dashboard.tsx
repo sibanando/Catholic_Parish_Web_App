@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
 import { adminApi, donationsApi } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import PageHeader from '../components/PageHeader';
@@ -30,7 +31,10 @@ export default function Dashboard() {
   const [donationTotal, setDonationTotal] = useState<string>('--');
 
   useEffect(() => {
-    adminApi.reports().then(r => setReport(r.data)).catch(console.error).finally(() => setLoading(false));
+    adminApi.reports()
+      .then(r => setReport(r.data))
+      .catch(() => toast.error('Failed to load dashboard data'))
+      .finally(() => setLoading(false));
     donationsApi.dashboard({ year: new Date().getFullYear() })
       .then(r => setDonationTotal('\u20B9' + (r.data.annualTotal || 0).toLocaleString('en-IN')))
       .catch(() => {});

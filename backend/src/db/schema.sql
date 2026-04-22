@@ -206,10 +206,21 @@ ON CONFLICT (name) DO NOTHING;
 
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_families_parish ON families(parish_id);
+CREATE INDEX IF NOT EXISTS idx_families_status ON families(status);
+CREATE INDEX IF NOT EXISTS idx_families_name ON families(family_name);
 CREATE INDEX IF NOT EXISTS idx_people_family ON people(primary_family_id);
+CREATE INDEX IF NOT EXISTS idx_people_name ON people(last_name, first_name);
 CREATE INDEX IF NOT EXISTS idx_sacraments_person ON sacraments(person_id);
 CREATE INDEX IF NOT EXISTS idx_sacraments_type ON sacraments(sacrament_type_id);
+CREATE INDEX IF NOT EXISTS idx_sacraments_parish ON sacraments(parish_id);
+CREATE INDEX IF NOT EXISTS idx_sacraments_date ON sacraments(date);
+CREATE INDEX IF NOT EXISTS idx_sacraments_status ON sacraments(status);
+CREATE INDEX IF NOT EXISTS idx_family_memberships_person ON family_memberships(person_id);
+CREATE INDEX IF NOT EXISTS idx_family_memberships_family ON family_memberships(family_id);
 CREATE INDEX IF NOT EXISTS idx_certificates_sacrament ON certificates(sacrament_id);
+CREATE INDEX IF NOT EXISTS idx_certificates_token ON certificates(hash_or_qr_token);
 CREATE INDEX IF NOT EXISTS idx_audit_log_user ON audit_log(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_log_entity ON audit_log(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp ON audit_log(timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_parish ON users(parish_id);

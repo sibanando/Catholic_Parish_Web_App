@@ -27,39 +27,50 @@ const personSchema = z.object({
 // GET /people (search)
 router.get('/', async (req: Request, res: Response): Promise<void> => {
   const { search, page = '1', limit = '20' } = req.query;
-  const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
+  const p = Math.max(1, parseInt(page as string));
+  const lim = Math.min(100, Math.max(1, parseInt(limit as string)));
+  const offset = (p - 1) * lim;
 
-  let query: string;
-  let params: unknown[];
+  // Scope to parish via family membership — avoids leaking parish-less people
+  const parishScope = `EXISTS (
+    SELECT 1 FROM family_memberships fm2
+    JOIN families f2 ON fm2.family_id = f2.id
+    WHERE fm2.person_id = p.id AND f2.parish_id = $1
+  )`;
+
+  const conditions: string[] = [parishScope];
+  const params: unknown[] = [req.user!.parishId];
+  let idx = 2;
 
   if (search) {
-    query = `
-      SELECT p.*, f.family_name
-      FROM people p
-      LEFT JOIN families f ON p.primary_family_id = f.id
-      WHERE (f.parish_id = $1 OR p.primary_family_id IS NULL)
-        AND (
-          p.first_name ILIKE $2 OR p.last_name ILIKE $2
-          OR p.maiden_name ILIKE $2 OR p.baptismal_name ILIKE $2
-          OR concat(p.first_name, ' ', p.last_name) ILIKE $2
-        )
-      ORDER BY p.last_name, p.first_name
-      LIMIT $3 OFFSET $4`;
-    params = [req.user!.parishId, `%${search}%`, parseInt(limit as string), offset];
-  } else {
-    query = `
-      SELECT p.*, f.family_name
-      FROM people p
-      LEFT JOIN families f ON p.primary_family_id = f.id
-      WHERE (f.parish_id = $1 OR p.primary_family_id IS NULL)
-      ORDER BY p.last_name, p.first_name
-      LIMIT $2 OFFSET $3`;
-    params = [req.user!.parishId, parseInt(limit as string), offset];
+    conditions.push(`(
+      p.first_name ILIKE $${idx} OR p.last_name ILIKE $${idx}
+      OR p.maiden_name ILIKE $${idx} OR p.baptismal_name ILIKE $${idx}
+      OR (p.first_name || ' ' || p.last_name) ILIKE $${idx}
+    )`);
+    params.push(`%${search}%`);
+    idx++;
   }
 
+  const where = conditions.join(' AND ');
+
   try {
-    const result = await pool.query(query, params);
-    res.json({ data: result.rows, page: parseInt(page as string) });
+    const [countRes, dataRes] = await Promise.all([
+      pool.query(
+        `SELECT COUNT(*) FROM people p WHERE ${where}`,
+        params
+      ),
+      pool.query(
+        `SELECT p.*, f.family_name
+         FROM people p
+         LEFT JOIN families f ON p.primary_family_id = f.id
+         WHERE ${where}
+         ORDER BY p.last_name, p.first_name
+         LIMIT $${idx} OFFSET $${idx + 1}`,
+        [...params, lim, offset]
+      ),
+    ]);
+    res.json({ data: dataRes.rows, total: parseInt(countRes.rows[0].count), page: p });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -93,8 +104,12 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
       `SELECT p.*, f.family_name
        FROM people p
        LEFT JOIN families f ON p.primary_family_id = f.id
-       WHERE p.id = $1`,
-      [req.params.id]
+       WHERE p.id = $1 AND EXISTS (
+         SELECT 1 FROM family_memberships fm
+         JOIN families f2 ON fm.family_id = f2.id
+         WHERE fm.person_id = p.id AND f2.parish_id = $2
+       )`,
+      [req.params.id, req.user!.parishId]
     );
     if (!personRes.rows[0]) { res.status(404).json({ error: 'Person not found' }); return; }
 
@@ -171,7 +186,7 @@ router.delete('/:id', requireRoles(ROLES.ADMIN), async (req: Request, res: Respo
     const before = await pool.query('SELECT * FROM people WHERE id = $1', [req.params.id]);
     if (!before.rows[0]) { res.status(404).json({ error: 'Person not found' }); return; }
 
-    await pool.query('DELETE FROM people WHERE id = $1', [req.params.id]);
+    await pool.query('DELETE FROM people WHERE id = $1 AND EXISTS (SELECT 1 FROM family_memberships fm JOIN families f ON fm.family_id = f.id WHERE fm.person_id = $1 AND f.parish_id = $2)', [req.params.id, req.user!.parishId]);
     await logAudit(req, 'person', req.params.id, 'DELETE', before.rows[0], undefined);
     res.status(204).send();
   } catch (err) {

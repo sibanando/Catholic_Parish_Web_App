@@ -41,6 +41,8 @@ export default function DonationRegister() {
   const [filterType, setFilterType] = useState('');
   const [wards, setWards] = useState<Ward[]>([]);
   const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [generatingReceipt, setGeneratingReceipt] = useState<string | null>(null);
 
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<DonationForm>();
 
@@ -127,6 +129,7 @@ export default function DonationRegister() {
   };
 
   const exportExcel = async () => {
+    setExporting(true);
     try {
       const r = await donationsApi.exportRegister({ month: filterMonth, year: filterYear });
       const url = URL.createObjectURL(new Blob([r.data]));
@@ -137,9 +140,11 @@ export default function DonationRegister() {
       URL.revokeObjectURL(url);
       toast.success('Export downloaded');
     } catch { toast.error('Export failed'); }
+    finally { setExporting(false); }
   };
 
   const generateReceipt = async (d: Donation) => {
+    setGeneratingReceipt(d.id);
     try {
       await donationsApi.createReceipt({
         donationId: d.id, familyId: d.family_id, amount: d.amount,
@@ -148,6 +153,7 @@ export default function DonationRegister() {
       toast.success('Receipt generated');
       load(page);
     } catch { toast.error('Failed to generate receipt'); }
+    finally { setGeneratingReceipt(null); }
   };
 
   const downloadReceiptPdf = async (receiptId: string) => {
@@ -188,9 +194,9 @@ export default function DonationRegister() {
                 {types.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             )}
-            <button onClick={exportExcel} className="btn-secondary">
+            <button onClick={exportExcel} disabled={exporting} className="btn-secondary disabled:opacity-50">
               <svg className="w-4 h-4 mr-1 inline" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
-              {L.export}
+              {exporting ? 'Exporting...' : L.export}
             </button>
             <button onClick={openCreate} className="px-4 py-2.5 bg-maroon-500 text-white rounded-xl text-sm font-medium hover:bg-maroon-600 transition-colors shadow-sm">
               + {L.recordDonation}
@@ -248,8 +254,11 @@ export default function DonationRegister() {
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-1">
                         {!d.receipt_number && (
-                          <button onClick={() => generateReceipt(d)} className="btn-ghost text-xs text-gold-700" title="Generate Receipt">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
+                          <button onClick={() => generateReceipt(d)} disabled={generatingReceipt === d.id} className="btn-ghost text-xs text-gold-700 disabled:opacity-50" title="Generate Receipt">
+                            {generatingReceipt === d.id
+                              ? <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                              : <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
+                            }
                           </button>
                         )}
                         <button onClick={() => openEdit(d)} className="btn-ghost text-xs text-blue-600">Edit</button>
@@ -265,12 +274,12 @@ export default function DonationRegister() {
 
         {total > 30 && (
           <div className="flex items-center justify-center gap-2 mt-6">
-            <button disabled={page === 1} onClick={() => { setPage(p => p - 1); load(page - 1); }} className="btn-secondary text-sm disabled:opacity-40">
+            <button disabled={page === 1 || loading} onClick={() => { setPage(p => p - 1); load(page - 1); }} className="btn-secondary text-sm disabled:opacity-40">
               <svg className="w-4 h-4 mr-1 inline" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
               Previous
             </button>
-            <span className="px-4 py-2 text-sm text-gray-500 font-medium">Page {page}</span>
-            <button disabled={page * 30 >= total} onClick={() => { setPage(p => p + 1); load(page + 1); }} className="btn-secondary text-sm disabled:opacity-40">
+            <span className="px-4 py-2 text-sm text-gray-500 font-medium">Page {page} of {Math.ceil(total / 30)}</span>
+            <button disabled={page * 30 >= total || loading} onClick={() => { setPage(p => p + 1); load(page + 1); }} className="btn-secondary text-sm disabled:opacity-40">
               Next
               <svg className="w-4 h-4 ml-1 inline" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
             </button>

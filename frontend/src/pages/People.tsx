@@ -15,10 +15,14 @@ import type { Person } from '../types';
 
 type PersonFormData = Omit<Person, 'id' | 'families' | 'sacraments'>;
 
+const PAGE_SIZE = 50;
+
 export default function People() {
   const { hasRole } = useAuth();
   const navigate = useNavigate();
   const [people, setPeople] = useState<Person[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -32,17 +36,18 @@ export default function People() {
   const { register, handleSubmit, reset, formState: { errors } } = useForm<PersonFormData>({ defaultValues: { status: 'active' } });
   const editForm = useForm<PersonFormData>({ defaultValues: { status: 'active' } });
 
-  const load = async (q = '') => {
+  const load = async (q = '', p = 1) => {
     setLoading(true);
     try {
-      const r = await peopleApi.list({ search: q || undefined, limit: 50 });
+      const r = await peopleApi.list({ search: q || undefined, limit: PAGE_SIZE, page: p });
       setPeople(r.data.data);
+      setTotal(r.data.total ?? r.data.data.length);
     } catch { toast.error('Failed to load people'); }
     finally { setLoading(false); }
   };
 
   useEffect(() => { load(); }, []);
-  useEffect(() => { load(debouncedSearch); }, [debouncedSearch]);
+  useEffect(() => { setPage(1); load(debouncedSearch, 1); }, [debouncedSearch]);
 
   useEffect(() => {
     if (editPerson) {
@@ -70,7 +75,7 @@ export default function People() {
       toast.success('Person created successfully');
       reset();
       setShowModal(false);
-      load(debouncedSearch);
+      load(debouncedSearch, page);
     } catch { toast.error('Failed to create person'); }
     finally { setSaving(false); }
   };
@@ -82,7 +87,7 @@ export default function People() {
       await peopleApi.update(editPerson.id, data);
       toast.success('Person updated successfully');
       setEditPerson(null);
-      load(debouncedSearch);
+      load(debouncedSearch, page);
     } catch { toast.error('Failed to update person'); }
     finally { setSaving(false); }
   };
@@ -94,7 +99,7 @@ export default function People() {
       await peopleApi.delete(deleteTarget.id);
       toast.success('Person deleted');
       setDeleteTarget(null);
-      load(debouncedSearch);
+      load(debouncedSearch, page);
     } catch { toast.error('Failed to delete person'); }
     finally { setDeleting(false); }
   };
@@ -169,7 +174,7 @@ export default function People() {
     <div>
       <PageHeader
         title="People"
-        subtitle="Search and manage individual parishioners"
+        subtitle={total > 0 ? `${total} parishioner${total !== 1 ? 's' : ''}` : 'Search and manage individual parishioners'}
         actions={
           canEdit ? (
             <button onClick={() => setShowModal(true)} className="btn-primary">+ New Person</button>
@@ -256,6 +261,19 @@ export default function People() {
               </tbody>
             </table>
           </motion.div>
+        )}
+        {total > PAGE_SIZE && (
+          <div className="flex items-center justify-center gap-2 mt-6">
+            <button disabled={page === 1 || loading} onClick={() => { setPage(p => p - 1); load(debouncedSearch, page - 1); }} className="btn-secondary text-sm disabled:opacity-40">
+              <svg className="w-4 h-4 mr-1 inline" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
+              Previous
+            </button>
+            <span className="px-4 py-2 text-sm text-gray-500 font-medium">Page {page} of {Math.ceil(total / PAGE_SIZE)}</span>
+            <button disabled={page * PAGE_SIZE >= total || loading} onClick={() => { setPage(p => p + 1); load(debouncedSearch, page + 1); }} className="btn-secondary text-sm disabled:opacity-40">
+              Next
+              <svg className="w-4 h-4 ml-1 inline" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
+            </button>
+          </div>
         )}
       </div>
 
