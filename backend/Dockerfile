@@ -1,12 +1,30 @@
-FROM node:20-alpine
+# ---- Build Stage ----
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
 
+# ---- Production Stage ----
+FROM node:20-slim AS production
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm install
+# Install Chromium for Puppeteer PDF generation
+RUN apt-get update && apt-get install -y \
+    chromium \
+    fonts-liberation \
+    --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY . .
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+    NODE_ENV=production
+
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+COPY --from=builder /app/dist ./dist
 
 EXPOSE 4000
-
-CMD ["npm", "run", "dev"]
+CMD ["node", "dist/index.js"]

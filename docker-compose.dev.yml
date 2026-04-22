@@ -1,0 +1,29 @@
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_PASSWORD: parish1234
+
+  backend:
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://postgres:parish1234@postgres:5432/parish_db
+      JWT_SECRET: dev-secret-key-change-in-production
+      JWT_REFRESH_SECRET: dev-refresh-secret-change-in-production
+      FRONTEND_URL: http://localhost:5173
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./backend/src:/app/src
+    command: npm run dev
+
+  frontend:
+    environment:
+      VITE_API_URL: http://localhost:4000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+    command: sh -c "npm run dev -- --host"
