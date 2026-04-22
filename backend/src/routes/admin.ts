@@ -16,26 +16,33 @@ router.get('/audit-log', requireRoles(ROLES.ADMIN, ROLES.AUDITOR), async (req: R
   const p = Math.max(1, parseInt(page as string));
   const lim = Math.min(200, Math.max(1, parseInt(limit as string)));
   const offset = (p - 1) * lim;
+
+  // $1 is always parishId — scopes log to this parish via the users JOIN
   const conditions: string[] = [];
-  const params: unknown[] = [];
-  let idx = 1;
+  const params: unknown[] = [req.user!.parishId];
+  let idx = 2;
 
-  if (entityType) { conditions.push(`entity_type = $${idx++}`); params.push(entityType); }
-  if (action) { conditions.push(`action = $${idx++}`); params.push(action); }
-  if (userId) { conditions.push(`user_id = $${idx++}`); params.push(userId); }
+  if (entityType) { conditions.push(`al.entity_type = $${idx++}`); params.push(entityType); }
+  if (action) { conditions.push(`al.action = $${idx++}`); params.push(action); }
+  if (userId) { conditions.push(`al.user_id = $${idx++}`); params.push(userId); }
 
-  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const where = conditions.length ? `AND ${conditions.join(' AND ')}` : '';
   try {
     const result = await pool.query(
       `SELECT al.*, u.email, u.first_name, u.last_name
        FROM audit_log al
-       LEFT JOIN users u ON al.user_id = u.id
+       JOIN users u ON al.user_id = u.id AND u.parish_id = $1
        ${where}
        ORDER BY al.timestamp DESC
        LIMIT $${idx} OFFSET $${idx + 1}`,
       [...params, lim, offset]
     );
-    const countRes = await pool.query(`SELECT COUNT(*) FROM audit_log ${where}`, params);
+    const countRes = await pool.query(
+      `SELECT COUNT(*) FROM audit_log al
+       JOIN users u ON al.user_id = u.id AND u.parish_id = $1
+       ${where}`,
+      params
+    );
     res.json({ data: result.rows, total: parseInt(countRes.rows[0].count), page: p });
   } catch (err) {
     console.error(err);

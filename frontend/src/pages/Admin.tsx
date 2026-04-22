@@ -313,7 +313,7 @@ export default function Admin() {
                 {auditLogs.map((log, i) => (
                   <motion.tr key={log.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.01 }}>
                     <td className="table-cell text-gray-500 whitespace-nowrap text-xs">{new Date(log.timestamp).toLocaleString()}</td>
-                    <td className="table-cell text-gray-700">{log.email ? `${log.first_name} ${log.last_name}` : 'System'}</td>
+                    <td className="table-cell text-gray-700">{log.first_name ? `${log.first_name} ${log.last_name}` : (log.email ?? 'System')}</td>
                     <td className="table-cell">
                       <span className={`badge ${
                         log.action === 'CREATE' ? 'badge-success' :
@@ -337,7 +337,7 @@ export default function Admin() {
       </div>
 
       {/* Add / Edit User Modal */}
-      <Modal open={showUserModal} onClose={() => setShowUserModal(false)} title={editUser ? 'Edit User' : 'Add User'} size="lg">
+      <Modal open={showUserModal} onClose={() => { setShowUserModal(false); setEditUser(null); setUserForm({ firstName: '', lastName: '', email: '', password: '', roles: [], isActive: true }); setUserFormError(''); }} title={editUser ? 'Edit User' : 'Add User'} size="lg">
         <div className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>

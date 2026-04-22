@@ -887,7 +887,7 @@ router.get('/reports/ward-collection', async (req: Request, res: Response): Prom
        FROM wards w
        LEFT JOIN units u ON u.ward_id = w.id
        LEFT JOIN donation_family_info dfi ON dfi.ward_id = w.id AND (u.id IS NULL OR dfi.unit_id = u.id)
-       LEFT JOIN donations d ON d.family_id = dfi.family_id AND d.year = $2
+       LEFT JOIN donations d ON d.family_id = dfi.family_id AND d.year = $2 AND d.parish_id = $1
        WHERE w.parish_id = $1
        GROUP BY w.id, w.ward_name, w.ward_name_odia, w.sort_order, u.id, u.unit_name, u.unit_name_odia, u.sort_order
        ORDER BY w.sort_order, u.sort_order`,
@@ -929,7 +929,9 @@ router.get('/reports/family-summary', async (req: Request, res: Response): Promi
 router.get('/reports/defaulters', async (req: Request, res: Response): Promise<void> => {
   try {
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
-    const currentMonth = new Date().getMonth() + 1;
+    const currentYear = new Date().getFullYear();
+    // For a past year use all 12 months; for the current year use months elapsed so far
+    const currentMonth = year < currentYear ? 12 : new Date().getMonth() + 1;
     const result = await pool.query(
       `SELECT f.id, f.family_name, dfi.card_number, dfi.monthly_pledge, dfi.phone,
               w.ward_name, u.unit_name,
@@ -1030,7 +1032,8 @@ router.get('/reports/export', requireRoles(ROLES.ADMIN, ROLES.CLERK), async (req
       data = result.rows;
       sheetName = 'Family Summary';
     } else if (type === 'defaulters') {
-      const currentMonth = new Date().getMonth() + 1;
+      const currentYear = new Date().getFullYear();
+      const currentMonth = year < currentYear ? 12 : new Date().getMonth() + 1;
       const result = await pool.query(
         `SELECT f.family_name as "Family Name", dfi.card_number as "Card No", dfi.phone as "Phone",
                 w.ward_name as "Ward", dfi.monthly_pledge as "Monthly Pledge",
@@ -1054,7 +1057,7 @@ router.get('/reports/export', requireRoles(ROLES.ADMIN, ROLES.CLERK), async (req
                 COALESCE(SUM(d.amount), 0) as "Total", COUNT(DISTINCT d.family_id) as "Families"
          FROM wards w LEFT JOIN units u ON u.ward_id = w.id
          LEFT JOIN donation_family_info dfi ON dfi.ward_id = w.id AND (u.id IS NULL OR dfi.unit_id = u.id)
-         LEFT JOIN donations d ON d.family_id = dfi.family_id AND d.year = $2
+         LEFT JOIN donations d ON d.family_id = dfi.family_id AND d.year = $2 AND d.parish_id = $1
          WHERE w.parish_id = $1
          GROUP BY w.id, w.ward_name, w.sort_order, u.id, u.unit_name, u.sort_order
          ORDER BY w.sort_order, u.sort_order`,
