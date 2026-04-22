@@ -42,6 +42,7 @@ cp .env.example .env
 | `JWT_EXPIRES_IN` | no | Access token TTL (default: `15m`) |
 | `JWT_REFRESH_EXPIRES_IN` | no | Refresh token TTL (default: `7d`) |
 | `APP_PORT` | no | Host port for Docker Compose (default: `80`) |
+| `DATABASE_SSL` | no | Set `true` only for cloud-managed DBs (RDS, Azure DB for PostgreSQL). Leave `false` (default) for the bundled postgres container — it has no SSL configured. |
 | `REGISTRY` | no | Container registry prefix (default: `parish-app`) |
 | `IMAGE_TAG` | no | Image tag to build/pull (default: `latest`) |
 
@@ -65,24 +66,30 @@ cp .env.example .env
 # edit .env with your values
 
 ./start.sh          # production build + start
-# or
-./start-dev.sh      # development mode (hot reload, ports exposed)
 ```
+
+> **Warning — dev overlay and production images are incompatible.**
+> `docker-compose.dev.yml` overrides `command` to run `npm run dev` (which requires
+> `ts-node-dev`) and mounts your local source tree. The production image does not have
+> devDependencies installed. Always use the production compose alone for a real server:
+> ```bash
+> docker compose -f docker-compose.yml up --build -d
+> ```
 
 ### Manual commands
 
 ```bash
-# Start
-docker compose up -d --build
+# Start (production only)
+docker compose -f docker-compose.yml up --build -d
 
 # View logs
-docker compose logs -f
+docker compose -f docker-compose.yml logs -f
 
 # Stop
-docker compose down
+docker compose -f docker-compose.yml down
 
 # Stop and delete all data (destructive — removes postgres volume)
-docker compose down -v
+docker compose -f docker-compose.yml down -v
 ```
 
 ### Resource limits
@@ -103,6 +110,17 @@ Adjust in `docker-compose.yml` under each service's `deploy.resources` block.
 curl http://localhost/health        # → {"status":"ok","timestamp":"..."}
 curl http://localhost/api/auth      # → 404 route not found (expected — no body)
 ```
+
+### Azure VM checklist
+
+If deploying to an Azure Virtual Machine, port 80 (and 443 for HTTPS) must be opened in the **Network Security Group (NSG)**:
+
+1. Azure Portal → your VM → **Networking**
+2. **Add inbound port rule** — TCP, port `80`, priority `100`, Allow
+3. If system nginx is pre-installed and occupies port 80, disable it first:
+   ```bash
+   sudo systemctl stop nginx && sudo systemctl disable nginx
+   ```
 
 ---
 
@@ -372,6 +390,46 @@ kubectl rollout undo deployment/backend -n parish
 ---
 
 ## Troubleshooting
+
+### Login returns "Internal server error" — SSL connection error
+
+Symptom in backend logs: `Error: The server does not support SSL connections`
+
+The production pool config used to force SSL whenever `NODE_ENV=production`. The bundled postgres container has no SSL. Fix: ensure your `.env` contains:
+
+```env
+DATABASE_SSL=false
+```
+
+Only set `DATABASE_SSL=true` when connecting to an external managed database (AWS RDS, Azure Database for PostgreSQL) that requires SSL.
+
+### Port 80 already in use (frontend container fails to start)
+
+Symptom: `failed to bind host port 0.0.0.0:80/tcp: address already in use`
+
+A system-level nginx process is occupying port 80. Stop and disable it:
+
+```bash
+sudo lsof -i :80          # confirm it's nginx
+sudo systemctl stop nginx && sudo systemctl disable nginx
+docker compose -f docker-compose.yml up -d   # restart frontend container
+```
+
+Alternatively, run the app on a different port:
+
+```bash
+APP_PORT=8080 docker compose -f docker-compose.yml up -d
+```
+
+### Backend crashes with "ts-node-dev: not found"
+
+You are running the dev overlay against the production image. Use production compose only:
+
+```bash
+docker compose -f docker-compose.yml up --build -d
+```
+
+The dev overlay (`docker-compose.dev.yml`) is only for local development where source files are mounted and devDependencies are installed.
 
 ### Backend won't start (database connection refused)
 
