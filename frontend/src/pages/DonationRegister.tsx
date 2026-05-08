@@ -147,7 +147,7 @@ export default function DonationRegister() {
     setGeneratingReceipt(d.id);
     try {
       await donationsApi.createReceipt({
-        donationId: d.id, familyId: d.family_id, amount: d.amount,
+        donationId: d.id, familyId: d.family_id, amount: Number(d.amount),
         dateIssued: d.donation_date?.split('T')[0] || new Date().toISOString().split('T')[0],
       });
       toast.success('Receipt generated');

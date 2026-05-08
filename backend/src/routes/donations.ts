@@ -761,7 +761,7 @@ router.post('/receipts', requireRoles(ROLES.ADMIN, ROLES.CLERK), async (req: Req
   const schema = z.object({
     donationId: z.string().uuid().optional(),
     familyId: z.string().uuid(),
-    amount: z.number().positive(),
+    amount: z.coerce.number().positive(),
     dateIssued: z.string(),
   });
   const parsed = schema.safeParse(req.body);
